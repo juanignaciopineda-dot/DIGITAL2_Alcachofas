@@ -1,0 +1,8 @@
+# Normaliza los finales de línea al guardar en el repositorio.
+# Sin esto, en Windows aparece "el archivo entero modificado"
+# aunque no hayas tocado nada.
+* text=auto
+
+*.asm text
+*.inc text
+*.hex binary

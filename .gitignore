@@ -1,0 +1,31 @@
+# ---------------------------------------------------------------
+# Archivos que NO se suben al repositorio.
+# Todo lo que está acá lo genera MPLAB X o MPASM al ensamblar:
+# se vuelve a crear solo y en git solo genera conflictos.
+# Si no entendés por qué, mirá docs/03-como-trabajamos.md
+# ---------------------------------------------------------------
+
+# MPLAB X
+build/
+dist/
+debug/
+**/nbproject/private/
+**/nbproject/Makefile-*
+**/nbproject/Package-*.bash
+
+# Salidas de MPASM
+*.hex
+*.lst
+*.map
+*.cod
+*.err
+*.o
+*.obj
+*.sym
+*.mcs
+
+# Sistema operativo y editores
+Thumbs.db
+.DS_Store
+.vscode/
+*~
