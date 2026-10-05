@@ -20,6 +20,7 @@ AUX	    EQU 0x28
 PULSADO	    EQU 1
 ESPERAR	    EQU 2
 CONTPULSO   EQU 0x30
+INDICE	    EQU 0x31
 
     ORG 0x00
     GOTO INIT
@@ -44,12 +45,15 @@ INIT:
     BANKSEL TRISD
     CLRF    TRISD           ;Salidas 7 segmentos
     
-    BANKSEL OPTION_REG	    ;inicia el time0 con un prescaler de 32
+    ;Inicialización de Interrupciones
+    BANKSEL OPTION_REG	    ;inicia el timer0 con un prescaler de 32
     MOVLW   b'10000100'
     MOVWF   OPTION_REG
+    
     BANKSEL TMR0	    ;inicializa el timer0 con 100
     MOVLW   0x64
     MOVWF   TMR0
+    
     BANKSEL INTCON
     BCF	    INTCON,GIE       ; Deshabilito globalmente las interrupciones
     BCF	    INTCON,T0IF      ; Borro bandera de TMR0
@@ -72,9 +76,12 @@ INIT:
     CLRF    UCENT
     CLRF    DIV
     CLRF    CONT
+    CLRF    AUX
     MOVLW   .200
     MOVWF   CONTPULSO
-   
+    
+    
+    GOTO MAIN
    
 ISR:
     BTFSC   INTCON,T0IF
@@ -115,11 +122,11 @@ SERVICIO_INTE:
     RETURN
     
 LOOPDISPLAY:
-    ;BANKSEL INDICE	    ;guarda la parte alta de la dirección de la tabla
+    BANKSEL INDICE	    ;guarda la parte alta de la dirección de la tabla
     MOVLW   HIGH TABLA
     MOVWF   PCLATH
-    BANKSEL PORTD	    
-    CLRF    PORTD	    ;apaga los 7 segmenos de los display
+    BANKSEL PORTC	    
+    CLRF    PORTC	    ;apaga los NPN de los display
     BTFSC   CRONO,0	    ;si CRONO esta en 0001 mueve UCENT a W
     MOVF    UCENT,w
     BTFSC   CRONO,1	    ;si CRONO esta en 0010 mueve DCENT a W
@@ -148,25 +155,25 @@ LOOPDISPLAY:
 INCREMENTAR:
     INCF    UCENT	;Incrementa UCENT 
     MOVF    UCENT,W
-    ANDLW   0x0A	;Si llega a 10 lo pone en 0
+    XORLW   0x0A	;Si llega a 10 lo pone en 0
     BTFSS   STATUS,Z	;Si no llega a 10 retorna
     RETURN
     CLRF    UCENT	
     INCF    DCENT	;Incrementa DCENT
     MOVF    DCENT,W	;Si llega a 10 lo pone en 0
-    ANDLW   0x0A	;Si no llega a 10 retorna
+    XORLW   0x0A	;Si no llega a 10 retorna
     BTFSS   STATUS,Z
     RETURN
     CLRF    DCENT
     INCF    USEG	;Incrementa USEG
     MOVF    USEG,W	;Si llega a 10 lo pone en 0
-    ANDLW   0x0A	;Si no llega a 10 retorna
+    XORLW   0x0A	;Si no llega a 10 retorna
     BTFSS   STATUS,Z
     RETURN
     CLRF    USEG
     INCF    DSEG	;Incrementa DSEG
     MOVF    DSEG,W	;Si llega a 10 lo pone en 0
-    ANDLW   0x06	;Si no llega a 10 retorna
+    XORLW   0x06	;Si no llega a 10 retorna
     BTFSS   STATUS,Z
     RETURN
     CLRF    DSEG
@@ -177,7 +184,7 @@ VALIDAR_PULSO:
     RETURN
     BTFSS   AUX,ESPERAR	    ;si esperar está en 0 va a primera pulsación
     GOTO    PRIMERPULSO
-    BTFSC   PORTB,3	    ;verifica si el pulsador sigue presionado
+    BTFSC   PORTB,0	    ;verifica si el pulsador sigue presionado
     GOTO    CLASIFPULSO	    ;si el botón no esta presionado va a Clasificar Pulso
     MOVF    CONTPULSO,W	    ;empieza a contar para validar el pulso largo
     BTFSS   STATUS,Z
@@ -194,6 +201,7 @@ CLASIFPULSO:
     CLRF    DCENT
     CLRF    USEG
     CLRF    DSEG
+    CLRF    DIV
     GOTO    RETORNAR
 
 PULSOCORTO:
@@ -210,7 +218,7 @@ PULSOCORTO:
 PRIMERPULSO:
     DECFSZ  CONT,F	    ;verifica si contador es 0, sino lo decrementa y retorna
     RETURN		    ;si es 0 ya se validó el pulso, verifica si sigue presionado
-    BTFSC   PORTB,3	    ;verificar si el pulsador está presionado
+    BTFSC   PORTB,0	    ;verificar si el pulsador está presionado
     GOTO    RETORNAR	    ;si no sigue presionado entonces va a RETORNAR
     BSF	    AUX,ESPERAR	    ;si sigue presionado levanta la bandera ESPERAR
     RETURN
@@ -227,16 +235,16 @@ RETORNAR:		    ;limpia las variables auxiliares, la bandera INTF
     ORG 0x0300
 TABLA:
     ADDWF PCL,f
-    RETLW b'01111110'	;0
-    RETLW b'00001010'	;1
-    RETLW b'10110110'	;2
-    RETLW b'10011110'	;3
-    RETLW b'11001010'	;4
-    RETLW b'11011100'	;5
-    RETLW b'11111100'	;6
-    RETLW b'00001110'	;7
-    RETLW b'11111110'	;8
-    RETLW b'11011110'	;9
+    RETLW b'00111111'	;0
+    RETLW b'00000110'	;1
+    RETLW b'01011011'	;2
+    RETLW b'01001111'	;3
+    RETLW b'01100110'	;4
+    RETLW b'01101101'	;5
+    RETLW b'01111101'	;6
+    RETLW b'00000111'	;7
+    RETLW b'01111111'	;8
+    RETLW b'01101111'	;9
     
     END
 
