@@ -104,6 +104,38 @@ ATENDER_RBI:
     
     
 LOOP_DISPLAY:
+    BANKSEL indice ;guarda la parte alta de la dirección de la tabla
+    MOVLW HIGH TABLA
+    MOVWF PCLATH
+    BANKSEL PORTC
+    CLRF PORTC ;apaga los displays
+    MOVLW 0x30
+    BTFSC CONTROL, ESTADO
+    ADDLW 0x05
+    MOVWF FSR
+    MOVF DATA_EN,W
+    MOVWF DATA_AUX
+
+  BUCLE:
+    BTFSC DATA_AUX,0
+     GOTO $+4 ;Si es 1 (Si), salta 4 instrucciones hacia abajo
+    RRF DATA_AUX, 1 ;Rota a la derecha
+    INCF FSR, 1 ;Incrementa FSR
+    GOTO BUCLE ;Vuelve al ciclo
+    MOVF INDF, W
+    CALL TABLA
+
+    BANKSEL PORTD
+    MOVWF PORTD
+    BANKSEL PORTC
+    MOVF DATA_EN,W
+    MOVWF PORTC
+    RLF DATA_EN,F
+    BTFSS DATA_EN,4 ; 00010000
+    RETURN
+    MOVLW 0x01
+    MOVWF DATA_EN
+    RETURN
 
     
     
@@ -142,6 +174,7 @@ PROCE_TECLA:
     MOVWF   COLUMNA ;cargo el dato de la columna encontrada
     CALL    CALCULAR_TECLA
     ADDWF   COLUMNA,F	;le sumo el valor de la fila
+    MOVF    COLUMNA,TECLA
     MOVLW   0xFE
     MOVWF   FILA    ;reseteo FILA
     BSF	    CONTROL,TECLA_ASIGNADA ;levanto la bandera
@@ -167,6 +200,8 @@ ITERAR_TECLAS:
     MOVWF   FILA
     MOVLW   0x80  
     MOVWF   COLUMNA
+    CALL    REARMAR
+    RETURN
     
 CALCULAR_TECLA:
     BTFSS   FILA,0
@@ -184,10 +219,38 @@ EJECUTAR:
     
     
 EDITAR:	;se accede cuando el estado es editando
+    MOVF    TECLA,W
+    SUBLW   0x09
+    BTFSS   STATUS,C
+    GOTO    ENCONTRAR_OPERACION
+    GOTO    ACT_NUM
+    
+ENCONTRAR_OPERACION:
+    MOVF    TECLA,W
+    SUBLW   0x0A
+    BTFSC   STATUS,C
+    GOTO    
+    
+ACT_NUM:
+    
+CANCELAR:
+    
+CONFIRMAR:
     
     
+PASAR_EDITANDO:	;se accede cuando el estado no sea editando
+    MOVF    TECLA,W
+    SUBLW   0x0B 
+    BTFSS   STATUS,Z ;verifico que sea 11
+    RETURN  ;si no es 11 no hago nada, no paso a editando
+    BSF	    CONTROL,ESTADO  ;si es 11 paso a editando
+    MOVLW   0x01
+    MOVWF   EDIT_IND	;cargo el indice
+    GOTO    RETORNO
     
-PASAR_EDITANDO:	;se accede cuando el estado
-    
+RETORNO:
+    CLRF    TECLA   ;borro la tecla
+    BCF	    CONTROL,TECLA_ASIGNADA  ;bajo la bandera
+    RETURN
     
     END
