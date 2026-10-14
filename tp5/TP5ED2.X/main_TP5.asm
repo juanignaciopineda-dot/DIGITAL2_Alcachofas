@@ -116,12 +116,15 @@ REARMAR:
 VALIDAR_PULSO:
     MOVF    DELAY,F
     BTFSS   STATUS,Z	;verifico que el tiempo de antirebote haya terminado
-    RETURN
+    GOTO    DECREMENTAR
     MOVF    PORTB,W
     BTFSC   STATUS,Z	;si z = 1 no hay pulsación
     CALL    REARMAR	;se reestablece el teclado
     BTFSS   STATUS,Z	;si z = 0 hay una tecla pulsada
     CALL    PROCE_TECLA	;se busca la tecla
+    RETURN
+  DECREMENTAR:
+    DECF    DELAY,F
     RETURN
     
 PROCE_TECLA:
