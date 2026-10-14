@@ -22,6 +22,7 @@
  COLUMNA EQU 0x41
  TECLA EQU 0x42
  CONTROL EQU 0x43 ;Almnacenamos bits de control (banderas y estados) bit 0 = estado, 0 = confirmado, 1 = editando
+ ESTADO	EQU 0
  PULSO	EQU 1	;el bit 1 es la bandera con la que se accede a atender pulso
  TECLA_ASIGNADA EQU 2 ;el bit 2 es la bandera con la que se accede a EJECUTAR
  REPOSO EQU 0x00    ;REPOSO es el estado del teclado cuando no se mapea, tiene todas las filas en alto
@@ -41,8 +42,9 @@ INIT:
     BANKSEL TRISA
     CLRF    TRISA   ;En el puerto A están las salidas para el teclado
     BANKSEL TRISB
-    MOVLW   0xFF
+    MOVLW   0xF0
     MOVWF   TRISB   ;En el puerto B están las entradas para el teclado
+    MOVWF   PORTB
     BANKSEL TRISC
     CLRF    TRISC
     BANKSEL TRISD
@@ -72,8 +74,8 @@ INIT:
     CLRF    EDIT_D
     CLRF    EDIT_C
     CLRF    EDIT_M
-    CLRF    LED_IND	;A CHEQUEAR CON NAHUEL
-    CLRF    EDIT_IND	;A CHEQUEAR CON NAHUEL
+    CLRF    LED_IND	
+    CLRF    EDIT_IND	
     CLRF    CONTROL	;Inicia en estado 0 con las banderas abajo
     CLRF    TECLA
     CLRF    COLUMNA
@@ -100,8 +102,10 @@ ATENDER_TIMER0:
 ATENDER_RBI:
     
     
+    
 LOOP_DISPLAY:
 
+    
     
 REARMAR:
     BCF	    INTCON,RBIE	;deshabilita las interrupciones del puerto B	
@@ -118,6 +122,7 @@ VALIDAR_PULSO:
     BTFSS   STATUS,Z	;verifico que el tiempo de antirebote haya terminado
     GOTO    DECREMENTAR
     MOVF    PORTB,W
+    SUBLW   0xF0
     BTFSC   STATUS,Z	;si z = 1 no hay pulsación
     CALL    REARMAR	;se reestablece el teclado
     BTFSS   STATUS,Z	;si z = 0 hay una tecla pulsada
@@ -128,11 +133,61 @@ VALIDAR_PULSO:
     RETURN
     
 PROCE_TECLA:
-    
-    
-    
-CALCULAR_TECLA:
+    MOVLW   0xFF
+    MOVWF   PORTA
+    BSF	    STATUS,C ;seteo el carry para no tener un falso cero en FILA
+    CALL    ITERAR_TECLAS
+    BTFSC   COLUMNA,7	;si no se detectó una tecla
+    RETURN  
+    MOVWF   COLUMNA ;cargo el dato de la columna encontrada
+    CALL    CALCULAR_TECLA
+    ADDWF   COLUMNA,F	;le sumo el valor de la fila
+    MOVLW   0xFE
+    MOVWF   FILA    ;reseteo FILA
+    BSF	    CONTROL,TECLA_ASIGNADA ;levanto la bandera
+    CALL    REARMAR
+    RETURN
     
 
+ITERAR_TECLAS:
+    MOVF    FILA,W
+    MOVWF   PORTA
+    BTFSS   PORTB,4
+    RETLW   0x00
+    BTFSS   PORTB,5
+    RETLW   0x01
+    BTFSS   PORTB,6
+    RETLW   0x02
+    BTFSS   PORTB,7
+    RETLW   0x03
+    RLF	    FILA
+    BTFSC   FILA,4
+    GOTO    ITERAR_TECLAS
+    MOVLW   0xFE
+    MOVWF   FILA
+    MOVLW   0x80  
+    MOVWF   COLUMNA
+    
+CALCULAR_TECLA:
+    BTFSS   FILA,0
+    RETLW   0x00
+    BTFSS   FILA,1
+    RETLW   0x04
+    BTFSS   FILA,3
+    RETLW   0x08
+    RETLW   0x0C
+    
+EJECUTAR:
+    BTFSS   CONTROL,ESTADO
+    GOTO    PASAR_EDITANDO
+    GOTO    EDITAR
+    
+    
+EDITAR:	;se accede cuando el estado es editando
+    
+    
+    
+PASAR_EDITANDO:	;se accede cuando el estado
+    
     
     END
