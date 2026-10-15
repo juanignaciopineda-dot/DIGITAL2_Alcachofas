@@ -29,6 +29,7 @@
  DATA_EN EQU 0x45
  DATA_AUX EQU 0x46
  INDICE EQU 0x47
+ LED_BUS EQU 0x48
  
  ORG 0x00
     GOTO INIT
@@ -86,7 +87,7 @@ INIT:
     CLRF    EDIT_M ;EDIT_IND en 1000
     CLRF    LED_IND	
     CLRF    EDIT_IND
-    BSF	    EDIT_IND,0
+    BSF	    EDIT_IND,3
     CLRF    CONTROL	;Inicia en estado 0 con las banderas abajo
     CLRF    TECLA
     CLRF    COLUMNA
@@ -155,6 +156,9 @@ ATENDER_RBI:
     
   ;Rutina de actualización de los displays
 LOOP_DISPLAY:
+    BANKSEL INDICE	    ;guarda la parte alta de la direcci?n de la tabla
+    MOVLW   HIGH TABLA
+    MOVWF   PCLATH
     BANKSEL PORTC
     CLRF    PORTC	    ;apaga los displays
     MOVLW   0x30	    
@@ -164,10 +168,9 @@ LOOP_DISPLAY:
     MOVF    DATA_EN,W	    ;carga la variable auxilar
     MOVWF   DATA_AUX
     BTFSS   DATA_AUX,4	    ;si no tiene que encender los LEDS muestra los display en BUCLE
-    GOTO    BUCLE	
-    MOVLW   0x04	    ;si tiene que mostrar la variable de los leds, la carga en W y se va a SALTA2
-    ADDWF   FSR,1
-    MOVF    INDF,W
+    GOTO    BUCLE
+    MOVLW   0x00
+    CALL    CONFIG_LEDS
     GOTO    SALTA2
   BUCLE:		;busca que display tiene que mostrar para cargar la variable correspondiente
     BTFSC   DATA_AUX,0	
@@ -177,9 +180,6 @@ LOOP_DISPLAY:
     GOTO    BUCLE	;Vuelve al ciclo
   SALTA:
     MOVF    INDF, W	;cuando encuentra la variable, la carga en W y va a la tabla
-    BANKSEL INDICE	    ;guarda la parte alta de la direcci?n de la tabla
-    MOVLW   HIGH TABLA
-    MOVWF   PCLATH
     CALL    TABLA
   SALTA2:
     BANKSEL PORTD	;carga el dato en PORTD
@@ -192,6 +192,21 @@ LOOP_DISPLAY:
     RETURN
     MOVLW   0x01	;si el "1" va al bit 6 lo mueve al bit 0
     MOVWF   DATA_EN
+    RETURN
+  CONFIG_LEDS:
+    CLRF    LED_BUS
+    BTFSS   CONTROL,ESTADO
+    RETURN
+    BSF	    LED_BUS,0
+    BTFSC   EDIT_IND,0
+    BSF	    LED_BUS,7
+    BTFSC   EDIT_IND,1
+    BSF	    LED_BUS,6
+    BTFSC   EDIT_IND,2
+    BSF	    LED_BUS,5
+    BTFSC   EDIT_IND,3
+    BSF	    LED_BUS,4
+    MOVF    LED_BUS,W
     RETURN
     
   ;Rutina de rearmado del teclado  
@@ -281,7 +296,7 @@ PASAR_EDITANDO:	;se accede cuando el estado no sea editando
     BTFSS   STATUS,Z ;verifico que sea 11
     GOTO    RETORNAR  ;si no es 11 no hago nada, no paso a editando
     BSF	    CONTROL,ESTADO  ;si es 11 paso a editando
-    MOVLW   0x01
+    MOVLW   0x08
     MOVWF   EDIT_IND	;cargo el indice
     GOTO    RETORNAR
 EDITAR:	;se accede cuando el estado es editando
@@ -300,7 +315,7 @@ ACT_NUM:    ;meto el dato en la variable  correspondiente
     MOVWF   EDIT_C
     BTFSC   EDIT_IND,3
     MOVWF   EDIT_M
-    GOTO    CURSOR_IZQUIERDA ;avanza el cursor
+    GOTO    CURSOR_DERECHA ;avanza el cursor
 ENCONTRAR_OPERACION:
     MOVLW   0x0A
     SUBWF   TECLA,F
