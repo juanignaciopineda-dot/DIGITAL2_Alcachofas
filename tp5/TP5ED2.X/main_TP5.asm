@@ -51,6 +51,7 @@ INIT:
     BANKSEL PORTB
     MOVLW   0xF0
     MOVWF   PORTB
+    MOVF    PORTB,W
     BANKSEL TRISC
     CLRF    TRISC
     BANKSEL TRISD
@@ -84,7 +85,8 @@ INIT:
     CLRF    EDIT_C
     CLRF    EDIT_M ;EDIT_IND en 1000
     CLRF    LED_IND	
-    CLRF    EDIT_IND	
+    CLRF    EDIT_IND
+    BSF	    EDIT_IND,0
     CLRF    CONTROL	;Inicia en estado 0 con las banderas abajo
     CLRF    TECLA
     CLRF    COLUMNA
@@ -99,6 +101,11 @@ INIT:
     BANKSEL INTCON
     BCF	    INTCON,GIE      ; Deshabilito globalmente las interrupciones
     
+    ;Configuración interrupciones por cambio del puerto B
+    BANKSEL IOCB
+    MOVLW   0xF0
+    MOVWF   IOCB ;habilito las interrupciones por cambio de los pines del puerto B
+    
     ; Configuración de interrupciones
     BANKSEL INTCON
     BCF	    INTCON,T0IF     ; Borro bandera de TMR0
@@ -106,10 +113,6 @@ INIT:
     BSF     INTCON,T0IE     ; Habilitar interrupción TMR0
     BSF     INTCON,RBIE	    ; Habilitar interrupción por cambio
     BSF     INTCON,GIE      ; Habilitar interrupciones globales
-    ;Cinfig interrupciones por cambio del puerto B
-    BANKSEL IOCB
-    MOVLW   0xF0
-    MOVWF   IOCB ;habilito las interrupciones por cambio de los pines del puerto B
     
     GOTO    MAIN
     
@@ -152,9 +155,6 @@ ATENDER_RBI:
     
   ;Rutina de actualización de los displays
 LOOP_DISPLAY:
-    BANKSEL INDICE	    ;guarda la parte alta de la dirección de la tabla
-    MOVLW   HIGH TABLA
-    MOVWF   PCLATH
     BANKSEL PORTC
     CLRF    PORTC	    ;apaga los displays
     MOVLW   0x30	    
@@ -177,6 +177,9 @@ LOOP_DISPLAY:
     GOTO    BUCLE	;Vuelve al ciclo
   SALTA:
     MOVF    INDF, W	;cuando encuentra la variable, la carga en W y va a la tabla
+    BANKSEL INDICE	    ;guarda la parte alta de la direcci?n de la tabla
+    MOVLW   HIGH TABLA
+    MOVWF   PCLATH
     CALL    TABLA
   SALTA2:
     BANKSEL PORTD	;carga el dato en PORTD
@@ -184,7 +187,7 @@ LOOP_DISPLAY:
     BANKSEL PORTC	;enciende el DISPLAY o LED segun corresponda
     MOVF    DATA_EN,W	
     MOVWF   PORTC
-    RLF	    DATA_EN,F	;desplaza la variable DATA_EN para la siguiente iteración
+    RLF	    DATA_EN,F	;desplaza la variable DATA_EN para la siguiente iteraci?n
     BTFSS   DATA_EN,5	; 00100000
     RETURN
     MOVLW   0x01	;si el "1" va al bit 6 lo mueve al bit 0
@@ -263,7 +266,7 @@ CALCULAR_TECLA:	    ;retorna con el valor correspondiente a la fila
     RETLW   0x00
     BTFSS   FILA,1
     RETLW   0x04
-    BTFSS   FILA,3
+    BTFSS   FILA,2
     RETLW   0x08
     RETLW   0x0C
     
@@ -313,7 +316,7 @@ ENCONTRAR_OPERACION:
     BTFSC   STATUS,Z	;si es 0 la tecla es B (13)
     GOTO    CURSOR_DERECHA ;función de B
     DECF    TECLA,F
-    BTFSC   STATUS,Z	 ;si es 0 la tecla es C (14)
+    BTFSS   STATUS,Z	 ;si es 0 la tecla es C (14)
     GOTO    BORRAR	 ;si no es cero solo puede ser D (15)
     GOTO    CONFIRMAR	;función de C
 CANCELAR:   ;funcion de *
