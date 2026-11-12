@@ -399,6 +399,7 @@ TABLA:
     RETLW b'01111101'	;6
     RETLW b'00000111'	;7
     RETLW b'01111111'	;8
-    RETLW b'01101111'	;9    
+    RETLW b'01101111'	;9
+    
     
     END

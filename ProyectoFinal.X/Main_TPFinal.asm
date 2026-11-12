@@ -66,10 +66,22 @@ INIT:
     TEMPD_INIT	EQU 0x23
     CONT	EQU 0x24
     ESTADO	EQU 0x25
-    UNIDAD	EQU 0x26
-    DECENA	EQU 0x27
-    CENTENA	EQU 0x28
-    
+    U_TEMP	EQU 0x26
+    D_TEMP	EQU 0x27
+    C_TEMP	EQU 0x28
+    U_DUTY	EQU 0x29
+    D_DUTY	EQU 0x30
+    C_DUTY	EQU 0x31
+    U_SP	EQU 0x32
+    D_SP	EQU 0x33
+    C_SP	EQU 0x34
+    U_SP_EDIT	EQU 0x35
+    D_SP_EDIT	EQU 0x36
+    C_SP_EDIT	EQU 0x37
+    U_SP_AUX	EQU 0x38
+    D_SP_AUX	EQU 0x39
+    EDIT_IND	EQU 0x40
+    SP		EQU 0x41
 	
  
     BANKSEL INTCON
@@ -365,16 +377,36 @@ ENCONTRAR_OPERACION:
     BTFSS   STATUS,Z	 ;si es 0 la tecla es C (14)
     GOTO    BORRAR	 ;si no es cero solo puede ser D (15)
     GOTO    CONFIRMAR	;función de C
-CANCELAR:   ;funcion de *
-    MOVF    DIS_U,W
-    MOVWF   EDIT_U ;pone los valores anteriores (confirmados) en las variables de edición
-    MOVF    DIS_D,W
-    MOVWF   EDIT_D
-    MOVF    DIS_C,W
-    MOVWF   EDIT_C
-    MOVF    DIS_M,W
-    MOVWF   EDIT_M
-    BCF	    CONTROL,ESTADO ;pasa al estado confirmado
+    
+TECLA_ASTERISCO:   ;funcion de *
+    MOVF    U_SP_EDIT,W
+    MOVWF   U_SP ;pone los valores anteriores (confirmados) en las variables de edición
+    MOVWF   U_SP_AUX
+    MOVF    D_SP_EDIT,W
+    MOVWF   D_SP
+    MOVWF   D_SP_AUX
+    MOVF    C_SP_EDIT,W
+    MOVWF   C_SP
+    MOVLW   .100
+    MOVWF   SP
+    BTFSC   C_SP_EDIT,0
+    GOTO    TERMINAR
+    CLRF    SP,F
+SUMAR_ASTERISCO:
+    MOVLW   .10
+    ADDWF   SP,F
+    DECFSZ  D_SP_AUX,F
+    GOTO    SUMAR_ASTERISCO
+    MOVF    U_SP_AUX,W
+    ADDWF   SP,F
+TERMINAR:
+    MOVLW   .1
+    MOVWF   ESTADO  
+    GOTO    RETORNAR
+
+
+TECLA_NUMERAL:
+
     GOTO    RETORNAR
     
 TECLA_A:    ;funcion de A
@@ -390,36 +422,16 @@ TEMPSENSOR:
 
 
 TECLA_B: ;función de B
-    BTFSS   ESTADO, 1
-    GOTO    MOSTRAR_SP
-    MOVLW   .3
-    BTFSS   ESTADO, 0
-    MOVWF   ESTADO
-    GOTO    RETORNAR
-MOSTRAR_SP:
-    MOVLW   .2
-    MOVWF   ESTADO
+    
+    GOTO    RETORNAR ;retorna sin cambiar de estado (sigue en edición)
+    
+TECLA_C:
+    
     GOTO    RETORNAR
 
-CONFIRMAR:  ;función de C
-    MOVF    EDIT_U,W	;pone los valores nuevos (editados) en las variables anteriores
-    MOVWF   DIS_U
-    MOVF    EDIT_D,W
-    MOVWF   DIS_D
-    MOVF    EDIT_C,W
-    MOVWF   DIS_C
-    MOVF    EDIT_M,W
-    MOVWF   DIS_M
-    BCF	    CONTROL,ESTADO ;pasa al estado confirmado
+TECLA_D:
+    
     GOTO    RETORNAR
-BORRAR:	    ;función de D
-    CLRF    EDIT_U ;borra las variables de edición
-    CLRF    EDIT_D
-    CLRF    EDIT_C
-    CLRF    EDIT_M
-    MOVLW   .1
-    MOVWF   EDIT_IND ;reestablece el cursor
-    GOTO    RETORNAR ;retorna sin cambiar de estado (sigue en edición)
 RETORNAR:   ;reestablece las variables y retorna
     CLRF    TECLA   ;borro la tecla
     BCF	    CONTROL,TECLA_ASIGNADA  ;bajo la bandera
@@ -439,5 +451,6 @@ TABLA:
     RETLW b'00000111'	;7
     RETLW b'01111111'	;8
     RETLW b'01101111'	;9    
-    
+    RETLW b'00001111'	;C
+    RETLW b'01100011'	;°
     END
