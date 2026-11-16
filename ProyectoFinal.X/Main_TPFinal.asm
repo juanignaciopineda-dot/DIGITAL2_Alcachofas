@@ -9,8 +9,49 @@
  __CONFIG _CONFIG2, _BOR4V_BOR40V & _WRT_OFF
  
 ;Declarar Variables
-
+    TEMPB	EQU 0x20    ;guarda ADRESH
+    TEMPD_L	EQU 0x21
+    TEMPD_H	EQU 0x22
+    TEMPD_INIT	EQU 0x23
+    CONT	EQU 0x24
+    ESTADO	EQU 0x25
+    
+    U_DUTY	EQU 0x26
+    D_DUTY	EQU 0x27
+    C_DUTY	EQU 0x28
+	
+    U_TEMP	EQU 0x2C
+    D_TEMP	EQU 0x2D
  
+    U_SP	EQU 0x2E
+    D_SP	EQU 0x2F
+    C_SP	EQU 0x30
+    
+    U_SP_EDIT	EQU 0x32
+    D_SP_EDIT	EQU 0x33
+    C_SP_EDIT	EQU 0x34
+	
+    U_SP_AUX	EQU 0x36
+    D_SP_AUX	EQU 0x37
+    EDIT_IND	EQU 0x38
+    SP		EQU 0x39
+    CONTROL	EQU 0x3A
+    PULSO	EQU 1	    ;el bit 1 es la bandera con la que se accede a atender pulso
+    TECLA_ASIGNADA EQU 2    ;el bit 2 es la bandera con la que se accede a EJECUTAR
+    ACT_DUTY	EQU 3
+    FILA	EQU 0x3B
+    COLUMNA	EQU 0x3C
+    TECLA	EQU 0x3D
+    DELAY	EQU 0x3E    ;registro para contar el delay antirebote
+    INDICE	EQU 0x3F
+    LED_BUS	EQU 0x40
+    DATA_EN	EQU 0x41
+    DATA_AUX	EQU 0x42
+    C_TEMP	EQU 0x45
+	
+    W_TEMP	EQU 0x70
+    STATUS_TEMP	EQU 0x71
+    PCLATH_TEMP	EQU 0x72
  
  ORG 0x00
     GOTO INIT
@@ -20,109 +61,201 @@
     
  ORG 0x05
 INIT:
-    ;CORREGIR
     BANKSEL ANSEL
-    CLRF    ANSEL           ; Pone en 0 ANSEL (PORTA y PORTE a modo digital)
-    CLRF    ANSELH          ; Pone en 0 ANSELH (PORTB a modo digital)
+    MOVLW   0x20
+    MOVWF   ANSEL   ; Pone RE0 como analógico y el resto como digital
+    BANKSEL ANSELH
+    CLRF    ANSELH  ; Pone en 0 ANSELH (PORTB a modo digital)
     BANKSEL TRISA
     CLRF    TRISA   ;En el puerto A están las salidas para el teclado
     BANKSEL PORTA
     CLRF    PORTA
     BANKSEL TRISB
     MOVLW   0xF0
-    MOVWF   TRISB   ;En el puerto B están las entradas para el teclado
+    MOVWF   TRISB   ;En el puerto B están las entradas para el teclado y las salidas de los enables de los displays
     BANKSEL PORTB
     MOVLW   0xF0
     MOVWF   PORTB
     MOVF    PORTB,W
     BANKSEL TRISC
     CLRF    TRISC
+    BANKSEL PORTC
+    CLRF    PORTC
     BANKSEL TRISD
     CLRF    TRISD
+    BANKSEL PORTD
+    CLRF    PORTD
+    BANKSEL TRISE
+    MOVLW   0x01
+    MOVWF   TRISE
     
     ;Pull ups internas
     BCF	    OPTION_REG,7 ;Habilito las pull-up del puerto B
     MOVLW   0xF0
     MOVWF   WPUB    ;Habilito solo las que usamos (RB0 tiene externa)
         
-    ; Configuración de Timer0
-    BANKSEL OPTION_REG
-    BCF     OPTION_REG,T0CS    ; Reloj interno Fosc/4
-    BCF     OPTION_REG,PSA     ; Prescaler asignado a TMR0
-    BCF     OPTION_REG,PS2
-    BCF     OPTION_REG,PS1
-    BSF     OPTION_REG,PS0     ; Prescaler 1:4
-
-    ; Carga inicial de Timer0
-    BANKSEL TMR0
-    MOVLW   .5
-    MOVWF   TMR0
-    
     ;Inicialización de variables
     ;COMPLETAR
-    TEMPB	EQU 0x20
-    TEMPD_L	EQU 0x21
-    TEMPD_H	EQU 0x22
-    TEMPD_INIT	EQU 0x23
-    CONT	EQU 0x24
-    ESTADO	EQU 0x25
-    U_TEMP	EQU 0x26
-    D_TEMP	EQU 0x27
-    C_TEMP	EQU 0x28
-    U_DUTY	EQU 0x29
-    D_DUTY	EQU 0x30
-    C_DUTY	EQU 0x31
-    U_SP	EQU 0x32
-    D_SP	EQU 0x33
-    C_SP	EQU 0x34
-    U_SP_EDIT	EQU 0x35
-    D_SP_EDIT	EQU 0x36
-    C_SP_EDIT	EQU 0x37
-    U_SP_AUX	EQU 0x38
-    D_SP_AUX	EQU 0x39
-    EDIT_IND	EQU 0x40
-    SP		EQU 0x41
-	
- 
+    CLRF	TEMPB	
+    CLRF	TEMPD_L	
+    CLRF	TEMPD_H	
+    CLRF	TEMPD_INIT	
+    CLRF	CONT	
+    CLRF	ESTADO	
+    CLRF	U_DUTY	
+    CLRF	D_DUTY	
+    CLRF	C_DUTY	
+    CLRF	0x29
+    MOVLW	.10
+    MOVWF	0x2A
+    MOVLW	.11
+    MOVWF	0x2B
+    CLRF	U_TEMP	
+    CLRF	D_TEMP	
+    CLRF	C_TEMP
+    CLRF	U_SP	
+    CLRF	D_SP	
+    CLRF	C_SP
+    CLRF	0x31
+    CLRF	U_SP_EDIT	
+    CLRF	D_SP_EDIT	
+    CLRF	C_SP_EDIT
+    CLRF	0x35
+    CLRF	U_SP_AUX	
+    CLRF	D_SP_AUX	
+    CLRF	EDIT_IND
+    BSF		EDIT_IND,3
+    CLRF	DATA_EN
+    BSF		DATA_EN,0	;se enciende el pimer bit de los enables
+    CLRF	DATA_AUX
+    MOVLW	.20
+    MOVWF	SP				
+    CLRF	CONTROL	
+    MOVLW	0xFE
+    MOVWF	FILA	
+    CLRF	COLUMNA	
+    CLRF	TECLA	
+    CLRF	DELAY	
+    CLRF	INDICE	
+    CLRF	LED_BUS	
+    CLRF	W_TEMP	
+    CLRF	STATUS_TEMP	
+    CLRF	PCLATH_TEMP	
+
     BANKSEL INTCON
     BCF	    INTCON,GIE      ; Deshabilito globalmente las interrupciones
+    
+    ; Configuración de ADC
+    BANKSEL ADCON1
+    MOVLW   0x00            ; ADFM=0 (justif. izquierda), Vref = VDD/VSS
+    MOVWF   ADCON1
+    BANKSEL ADCON0
+    MOVLW   b'10010101'       ; ADCS=01 (Fosc/8), CHS=0101 (AN5), GO=0, ADON=1
+    MOVWF   ADCON0
+    
+    ;--- CCP2 con Special Event Triger del ADC ---
+    BANKSEL CCP2CON
+    MOVLW   b'00111011'	
+    MOVWF   CCP2CON
+
+    ; Configuración de TMR1
+    BANKSEL PIR1
+    BCF     PIR1,TMR1IF
+    BANKSEL PIE1
+    BCF     PIE1,TMR1IE ; Habilitar interrupcion Timer1
+    BANKSEL T1CON
+    MOVLW   0x31	; prescaler en 8
+    MOVWF   T1CON       ; Encender Timer1
+    
+    ;--- PWM en CCP1 (RC2) ---
+    BANKSEL PR2
+    MOVLW   0xF9            ; periodo de 1 ms
+    MOVWF   PR2
+    BANKSEL CCPR1L
+    CLRF    CCPR1L          ; duty inicial = 0
+    CLRF    CCPR1H
+    MOVLW   0x0C            ; modo PWM, bits bajos de duty = 00
+    MOVWF   CCP1CON
+    
+    BANKSEL CCPR2H
+    MOVLW 0xF4
+    MOVWF CCPR2H
+    MOVLW 0x24
+    MOVWF CCPR2L ;timer 1 larga ADC cada 0,5 seg (N = 62500, P = 8)
+    
+    BANKSEL T2CON
+    MOVLW   0x05            ; TMR2 ON, prescaler 1:4
+    MOVWF   T2CON
     
     ;Configuración interrupciones por cambio del puerto B
     BANKSEL IOCB
     MOVLW   0xF0
     MOVWF   IOCB ;habilito las interrupciones por cambio de los pines del puerto B
     
-    ; Configuración de interrupciones
     BANKSEL INTCON
-    BCF	    INTCON,T0IF     ; Borro bandera de TMR0
-    BCF     INTCON,RBIF	    ; Borro bandera de cambio de PORTB
-    BSF     INTCON,T0IE     ; Habilitar interrupción TMR0
-    BSF     INTCON,RBIE	    ; Habilitar interrupción por cambio
+    BSF	    INTCON,PEIE
+    BCF	    INTCON,RBIF
+    BSF	    INTCON,RBIE
+    BANKSEL PIR1
+    BCF     PIR1,ADIF
+    BCF	    PIR1,TMR2IF
+    BCF	    PIR2,CCP2IF
+    BANKSEL PIE1
+    BSF	    PIE1,ADIE
+    BSF	    PIE1,TMR2IE
+    BCF	    PIE2,CCP2IE ;no usamos esta, dejenla tranquila
+ 
     BSF     INTCON,GIE      ; Habilitar interrupciones globales
     
     GOTO    MAIN
     
 ISR:
-    BTFSC   INTCON,T0IF
-    CALL    ATENDER_TIMER0
+    MOVWF W_TEMP		; Guardamos contexto
+    SWAPF STATUS,W
+    MOVWF STATUS_TEMP
+    MOVF PCLATH,W
+    MOVWF PCLATH_TEMP
+    CLRF PCLATH
+    
+    BANKSEL PIR1
+    BTFSC   PIR1,ADIF		;verificamos si la int se generó por el ADC
+    CALL    ATENDER_ADC
+    BTFSC   PIR1,TMR2IF
+    CALL    ATENDER_TIMER2
+    BANKSEL INTCON
     BTFSC   INTCON,RBIF
     CALL    ATENDER_RBI
+    
+    MOVF PCLATH_TEMP,W	    ; Restauramos PCLATH
+    MOVWF PCLATH
+    SWAPF STATUS_TEMP,W	    ; Restauramos STATUS
+    MOVWF STATUS
+    SWAPF W_TEMP,F	    ; Restauramos W
+    SWAPF W_TEMP,W
+    
     RETFIE
 
 MAIN:
     ;COMPLETAR
+    BANKSEL CONTROL
+    BTFSC   CONTROL,ACT_DUTY
+    CALL    MULT25	;acondiciona la medicón para mostrar en displays
+    BTFSC   CONTROL,ACT_DUTY
+    CALL    CALC_DUTY	;baja la bandera
+    ;desppues de cal_pi hace la rutina de control
     GOTO    MAIN
 
 MULT25:	    ;Escala la señal de 0 a 255 a una escala de 0 a 100
 	MOVLW	.4
 	MOVWF	CONT
+	CLRF TEMPD_H
 	MOVF	TEMPB, W
 	MOVWF	TEMPD_L
 	MOVWF	TEMPD_INIT
 MULT16:
-	CLRF	STATUS,C
+	BCF	STATUS,C
 	RLF	TEMPD_H, F
-	CLRF	STATUS,C
+	BCF	STATUS,C
 	RLF	TEMPD_L, F
 	BTFSC	STATUS,C
 	INCF	TEMPD_H, F
@@ -131,7 +264,6 @@ MULT16:
 	MOVLW	.9
 	MOVWF	CONT	
 	GOTO	SUMAR9
-
 SUMAR9:
 	MOVF	TEMPD_INIT,W
 	ADDWF	TEMPD_L, F
@@ -141,47 +273,52 @@ SUMAR9:
 	GOTO	SUMAR9
 	MOVLW	.6
 	MOVWF	CONT
-
 DIVIDIR_64:
-	CLRF	STATUS, C
+	BCF	STATUS, C
 	RRF	TEMPD_L, F
-	CLRF	STATUS, C
+	BCF	STATUS, C
 	RRF	TEMPD_H, F
 	BTFSC	STATUS, C
 	BSF	TEMPD_L,7
 	DECFSZ	CONT, F
-	GOTO	DIVIDIR64
-	CLRF	DECENA
-	CLRF	UNIDAD
-	CLRF	CENTENA
+	GOTO	DIVIDIR_64
+	CLRF	U_TEMP
+	CLRF	D_TEMP
+	CLRF	C_TEMP
 	GOTO 	SEPARAR_DATO
-
 SEPARAR_DATO:	;Separa en unidad, decena y centena la variable TEMPD_L en BCD no empaquetado
-	BCF		STATUS, C
-	MOVLW	.10
-	SUBWF	TEMPD_L, F
-	BTFSS	STATUS,C
-	GOTO 	GUARDAR
-	INCF	DECENA, F
-	GOTO	SEPARAR_DATO
+    MOVLW .10
+    SUBWF TEMPD_L,F
 
+    BTFSC STATUS,C
+    GOTO SUMA_DECENA
+
+    MOVLW .10
+    ADDWF TEMPD_L,F
+    GOTO GUARDAR
+
+SUMA_DECENA:
+    INCF D_TEMP,F
+    GOTO SEPARAR_DATO
 GUARDAR:
 	MOVF	TEMPD_L, W
-	MOVWF	UNIDAD
-	MOVLW	.10
-	SUBWF	DECENA,W
-	BTFSS	STATUS, Z
+	MOVWF	U_TEMP
 	RETURN
-	INCF	CENTENA, F	
-	CLRF	DECENA
-	RETURN
-
     
-
+ATENDER_ADC:
+    BANKSEL ADRESH		    ; Leemos parte baja
+    MOVF ADRESH,W
+    BANKSEL TEMPB
+    MOVWF TEMPB
+    BANKSEL PIR1		    ; Limpiamos bandera de interrupcion
+    BCF PIR1,ADIF
+    BANKSEL CONTROL
+    BSF	    CONTROL,ACT_DUTY
+    RETURN
     
-;Rutina de interrupción de timer0  
-ATENDER_TIMER0:
-
+;Rutina de interrupción de timer2  
+ATENDER_TIMER2:
+RETURN
     
 ;Rutina de interrupción del puerto B
 ATENDER_RBI:
@@ -195,51 +332,43 @@ ATENDER_RBI:
     BSF	    CONTROL,PULSO   ;levanta la bandera
     RETURN
 
+CALC_DUTY:
+    RETURN
+    
 ;Rutina de actualización de los displays
 ;CORREGIR PARA MOSTRAR LOS REGISTROS CORRESPONDIENTES AL TP_FINAL
 LOOP_DISPLAY:
     BANKSEL INDICE	    ;guarda la parte alta de la direcci?n de la tabla
     MOVLW   HIGH TABLA
-    MOVWF   PCLATH
+    MOVWF   PCLATH	    
+    BANKSEL PORTB	    ;apagamos los enable de los displays y los leds
+    MOVLW   0xF0
+    ANDWF   PORTB,F
     BANKSEL PORTC
-    CLRF    PORTC	    ;apaga los displays
-    MOVLW   0x30	    
-    BTFSC   CONTROL, ESTADO ;le carga el primer valor de las variablas DIS
-    ADDLW   0x05	    ;si esta en EDITAR le carga el primer valor de las variables EDIT
-    MOVWF   FSR		    ;direcciona DIS_U si estado es 0 y EDIT_U si estado es 1
-    MOVF    DATA_EN,W	    ;carga la variable auxilar
-    MOVWF   DATA_AUX
-    BTFSS   DATA_AUX,4	    ;si no tiene que encender los LEDS muestra los display en BUCLE
-    GOTO    BUCLE
-    MOVLW   0x00
-    CALL    CONFIG_LEDS
-    GOTO    SALTA2
-  BUCLE:		;busca que display tiene que mostrar para cargar la variable correspondiente
-    BTFSC   DATA_AUX,0	
-    GOTO    SALTA	;Si es 1 (Si), salta 4 instrucciones hacia abajo
-    RRF	    DATA_AUX, 1 ;Rota a la derecha
-    INCF    FSR, 1	;Incrementa FSR
-    GOTO    BUCLE	;Vuelve al ciclo
-  SALTA:
-    MOVF    INDF, W	;cuando encuentra la variable, la carga en W y va a la tabla
-    CALL    TABLA
-  SALTA2:
-    BANKSEL PORTD	;carga el dato en PORTD
-    MOVWF   PORTD
-    BANKSEL PORTC	;enciende el DISPLAY o LED segun corresponda
-    MOVF    DATA_EN,W	
-    MOVWF   PORTC
-    RLF	    DATA_EN,F	;desplaza la variable DATA_EN para la siguiente iteraci?n
-    BTFSS   DATA_EN,5	; 00100000
-    RETURN
-    MOVLW   0x01	;si el "1" va al bit 6 lo mueve al bit 0
-    MOVWF   DATA_EN
-    RETURN
-  CONFIG_LEDS:
+    BCF	    PORTC,4
+    MOVF    DATA_EN,W
+    MOVWF   DATA_AUX	    ;guardo el dato de enable en la var auxiliar
+    BTFSC   DATA_AUX,4
+    GOTO    MOSTRAR_LEDS    ;si tiene que mostrar los leds salta a la rutina corresp
+    MOVF    ESTADO,W	    ;sino calcula el dato que tiene que mostrar según 
+    ADDWF   ESTADO,W	    ;el estado y el enable de datos
+    ADDWF   ESTADO,W
+    ADDLW   0x26
+    MOVWF   FSR
+    BCF	    STATUS,C
+BUCLE_DIS:
+    BTFSC   DATA_AUX,0	    ;busca que display tiene que mostrar para cargar la variable correspondiente
+    GOTO    LLAMAR_TABLA    ;cuando lo encuentra va a la tabla
+    RRF	    DATA_AUX, 1	    ;Rota a la derecha
+    INCF    FSR, 1	    ;Incrementa FSR
+    GOTO    BUCLE_DIS	    ;Vuelve al ciclo
+    
+MOSTRAR_LEDS:
     CLRF    LED_BUS
-    BTFSS   CONTROL,ESTADO
+    MOVLW   .3
+    SUBWF   ESTADO,W
+    BTFSS   STATUS,Z
     RETURN
-    BSF	    LED_BUS,0
     BTFSC   EDIT_IND,0
     BSF	    LED_BUS,7
     BTFSC   EDIT_IND,1
@@ -249,6 +378,21 @@ LOOP_DISPLAY:
     BTFSC   EDIT_IND,3
     BSF	    LED_BUS,4
     MOVF    LED_BUS,W
+    BANKSEL PORTD	;carga el dato en PORTD
+    MOVWF   PORTD
+    BANKSEL PORTC
+    BSF	    PORTC,4
+    MOVLW   0x01	;siguiente iteración en el primer display
+    MOVWF   DATA_EN
+LLAMAR_TABLA:
+    MOVF    INDF,W
+    CALL    TABLA
+    BANKSEL PORTD	;carga el dato en PORTD
+    MOVWF   PORTD
+    BANKSEL PORTB
+    MOVF    DATA_EN,W
+    MOVWF   PORTB
+    RLF	    DATA_EN,F	;desplaza la variable DATA_EN para la siguiente iteraci?n
     RETURN
 
 ;Rutina de rearmado del teclado  
@@ -328,57 +472,70 @@ CALCULAR_TECLA:	    ;retorna con el valor correspondiente a la fila
     RETLW   0x0C
     
 ;Rutina de ejecución en base a la función de la tecla
-;ESTAS RUTINAS TIENEN QUE CAMBIARSE PARA FUNCIONAR CON LAS FUNCIONES DISEÑADAS
 EJECUTAR:
-    BTFSS   CONTROL,ESTADO  ;verifica si está editando (estado 1)
-    GOTO    PASAR_EDITANDO  ;tiene que verificar si tiene que pasar al estado 1
+    MOVLW   .3
+    SUBWF   ESTADO,W
+    BTFSS   STATUS,Z
+    GOTO    MOSTRAR_VAR	    ;muestra la variable que corresponda o cambia de estado segun corresponda
     GOTO    EDITAR	    ;busca la acción que tiene que ejecutar
-PASAR_EDITANDO:	;se accede cuando el estado no sea editando
+MOSTRAR_VAR:		    ;se accede cuando el estado no sea editando
     MOVF    TECLA,W
-    SUBLW   0x0B 
-    BTFSS   STATUS,Z ;verifico que sea 11
-    GOTO    RETORNAR  ;si no es 11 no hago nada, no paso a editando
-    BSF	    CONTROL,ESTADO  ;si es 11 paso a editando
-    MOVLW   0x08
-    MOVWF   EDIT_IND	;cargo el indice
+    SUBLW   0x0C 
+    BTFSC   STATUS,Z ;verifico que sea 12
+    GOTO    TECLA_A
+    MOVF    TECLA,W
+    SUBLW   0x0D
+    BTFSC   STATUS,Z ;verifico que sea 13
+    GOTO    TECLA_B
     GOTO    RETORNAR
+   
 EDITAR:	;se accede cuando el estado es editando
     MOVF    TECLA,W
     SUBLW   0x09    ;verifica si la tecla es menor o igual a 9 (números)
     BTFSS   STATUS,C
     GOTO    ENCONTRAR_OPERACION ;si es mayor hay que realizar una operación
     GOTO    ACT_NUM		;sino hay que modificar un número
-ACT_NUM:    ;meto el dato en la variable  correspondiente
-    MOVF    TECLA,W
-    BTFSC   EDIT_IND,0	;busca la ubicacióndel cursor
-    MOVWF   EDIT_U	;pone el número leído en la variable corresponciente
-    BTFSC   EDIT_IND,1
-    MOVWF   EDIT_D
-    BTFSC   EDIT_IND,2
-    MOVWF   EDIT_C
-    BTFSC   EDIT_IND,3
-    MOVWF   EDIT_M
-    GOTO    TECLA_B ;avanza el cursor
+    
 ENCONTRAR_OPERACION:
     MOVLW   0x0A
     SUBWF   TECLA,F
-    BTFSC   STATUS,Z	;si es 0 la tecla es * (10)
-    GOTO    CANCELAR	;funcion de *
-    DECF    TECLA,F	;le resto uno al resultado, acortando el rango de valores
-    BTFSC   STATUS,Z	;si es cero la tecla es # (11)
-    GOTO    RETORNAR	;funcion de #, en este estado no hace nada
+    BTFSC   STATUS,Z	    ;si es 0 la tecla es * (10)
+    GOTO    TECLA_ASTERISCO ;funcion de *
+    DECF    TECLA,F	    ;le resto uno al resultado, acortando el rango de valores
+    BTFSC   STATUS,Z	    ;si es cero la tecla es # (11)
+    GOTO    TECLA_NUMERAL   ;funcion de #
     DECF    TECLA,F
-    BTFSC   STATUS,Z	;si es 0 la tecla es A (12)
-    GOTO    TECLA_A	;funcion de A
+    BTFSC   STATUS,Z	    ;si es 0 la tecla es A (12)
+    GOTO    RETORNAR	    ;funcion de A, en este caso no hace nada
     DECF    TECLA,F
-    BTFSC   STATUS,Z	;si es 0 la tecla es B (13)
-    GOTO    TECLA_B ;función de B
+    BTFSC   STATUS,Z	    ;si es 0 la tecla es B (13)
+    GOTO    RETORNAR	    ;función de B, en este caso no hace nada
     DECF    TECLA,F
-    BTFSS   STATUS,Z	 ;si es 0 la tecla es C (14)
-    GOTO    BORRAR	 ;si no es cero solo puede ser D (15)
-    GOTO    CONFIRMAR	;función de C
+    BTFSS   STATUS,Z	    ;si es 0 la tecla es C (14)
+    GOTO    TECLA_D	    ;si no es cero solo puede ser D (15)
+    GOTO    TECLA_C	    ;función de C
     
-TECLA_ASTERISCO:   ;funcion de *
+ACT_NUM:    ;meto el dato numérico (0 a 9) en la variable  correspondiente
+    MOVF    TECLA,W
+    BTFSC   EDIT_IND,0	;busca la ubicación del cursor
+    MOVWF   U_SP_EDIT	;pone el número leído en la variable corresponciente
+    BTFSC   EDIT_IND,1
+    MOVWF   D_SP_EDIT
+    BTFSS   EDIT_IND,2
+    GOTO    TECLA_D
+    MOVF    D_SP_EDIT,W
+    IORWF   U_SP_EDIT,W
+    BTFSS   STATUS,Z
+    GOTO    RETORNAR
+    MOVLW   .1
+    SUBWF   TECLA,W
+    BTFSS   STATUS,Z
+    GOTO    RETORNAR
+    MOVF    TECLA,W
+    MOVWF   C_SP_EDIT
+    GOTO    TECLA_D ;avanza el cursor
+    
+TECLA_ASTERISCO:   ;funcion de la tecla *   (confirmar)
     MOVF    U_SP_EDIT,W
     MOVWF   U_SP ;pone los valores anteriores (confirmados) en las variables de edición
     MOVWF   U_SP_AUX
@@ -391,52 +548,83 @@ TECLA_ASTERISCO:   ;funcion de *
     MOVWF   SP
     BTFSC   C_SP_EDIT,0
     GOTO    TERMINAR
-    CLRF    SP,F
+    CLRF    SP
+    MOVF    D_SP_AUX,F
+    BTFSC   STATUS,Z
+    GOTO    SUMAR_UN_AST
 SUMAR_ASTERISCO:
     MOVLW   .10
     ADDWF   SP,F
     DECFSZ  D_SP_AUX,F
     GOTO    SUMAR_ASTERISCO
+SUMAR_UN_AST:
     MOVF    U_SP_AUX,W
     ADDWF   SP,F
 TERMINAR:
-    MOVLW   .1
+    MOVLW   .2
     MOVWF   ESTADO  
     GOTO    RETORNAR
 
-
-TECLA_NUMERAL:
-
+TECLA_NUMERAL:	;función de la tecla #	(cancelar)
+    MOVF    U_SP,W
+    MOVWF   U_SP_EDIT ;pone los valores anteriores (confirmados) en las variables de edición
+    MOVF    D_SP,W
+    MOVWF   D_SP_EDIT
+    MOVF    C_SP,W
+    MOVWF   C_SP_EDIT
+    MOVLW   .2
+    MOVWF   ESTADO  
     GOTO    RETORNAR
     
-TECLA_A:    ;funcion de A
+TECLA_A:    ;funcion de A (cambiar de estado)
     BTFSS   ESTADO, 0
-    GOTO    TEMPSENSOR	
+    GOTO    SALTO_A	
     BTFSS   ESTADO, 1
     CLRF    ESTADO
     GOTO    RETORNAR
-TEMPSENSOR:
+SALTO_A:
     MOVLW   .1
     MOVWF   ESTADO
     GOTO    RETORNAR
 
-
-TECLA_B: ;función de B
+TECLA_B: ;función de B (cambiar de estado)
+    BTFSS   ESTADO,1
+    GOTO    SALTO_B
+    MOVLW   .3
+    MOVWF   ESTADO
+    MOVLW   .4
+    MOVWF   EDIT_IND
+    GOTO    RETORNAR
+SALTO_B:
+    MOVLW   .2
+    MOVWF   ESTADO
+    GOTO    RETORNAR 
     
-    GOTO    RETORNAR ;retorna sin cambiar de estado (sigue en edición)
-    
-TECLA_C:
-    
+TECLA_C:    ;función de tecla C (desplazar izq)
+    BCF	    STATUS,C
+    RLF	    EDIT_IND
+    MOVLW   0x0F
+    ANDWF   EDIT_IND,W
+    BTFSS   STATUS,Z
+    GOTO    RETORNAR
+    MOVLW   .4
+    MOVWF   EDIT_IND
     GOTO    RETORNAR
 
-TECLA_D:
+TECLA_D:    ;función de tecla D (desplazar der)
+    BCF	    STATUS,C
+    RRF	    EDIT_IND
+    MOVF EDIT_IND,F
+    BTFSS STATUS,Z
+    GOTO RETORNAR
+
+    MOVLW b'00000100'
+    MOVWF EDIT_IND
     
-    GOTO    RETORNAR
 RETORNAR:   ;reestablece las variables y retorna
     CLRF    TECLA   ;borro la tecla
     BCF	    CONTROL,TECLA_ASIGNADA  ;bajo la bandera
     RETURN
-    
     
 ORG 0x0300
 TABLA:
