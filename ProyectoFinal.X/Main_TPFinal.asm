@@ -178,10 +178,10 @@ INIT:
     MOVWF   CCP1CON
     
     BANKSEL CCPR2H
-    MOVLW 0xF4
-    MOVWF CCPR2H
-    MOVLW 0x24
-    MOVWF CCPR2L ;timer 1 larga ADC cada 0,5 seg (N = 62500, P = 8)
+    MOVLW   0x0B
+    MOVWF   CCPR2H
+    MOVLW   0xCD
+    MOVWF   CCPR2L ;timer 1 larga ADC cada 0,5 seg (N = 62500, P = 8)
     
     BANKSEL T2CON
     MOVLW   0x05            ; TMR2 ON, prescaler 1:4
@@ -210,12 +210,12 @@ INIT:
     GOTO    MAIN
     
 ISR:
-    MOVWF W_TEMP		; Guardamos contexto
-    SWAPF STATUS,W
-    MOVWF STATUS_TEMP
-    MOVF PCLATH,W
-    MOVWF PCLATH_TEMP
-    CLRF PCLATH
+    MOVWF    W_TEMP		; Guardamos contexto
+    SWAPF   STATUS,W
+    MOVWF   STATUS_TEMP
+    MOVF    PCLATH,W
+    MOVWF   PCLATH_TEMP
+    CLRF    PCLATH
     
     BANKSEL PIR1
     BTFSC   PIR1,ADIF		;verificamos si la int se generó por el ADC
@@ -226,12 +226,12 @@ ISR:
     BTFSC   INTCON,RBIF
     CALL    ATENDER_RBI
     
-    MOVF PCLATH_TEMP,W	    ; Restauramos PCLATH
-    MOVWF PCLATH
-    SWAPF STATUS_TEMP,W	    ; Restauramos STATUS
-    MOVWF STATUS
-    SWAPF W_TEMP,F	    ; Restauramos W
-    SWAPF W_TEMP,W
+    MOVF    PCLATH_TEMP,W	    ; Restauramos PCLATH
+    MOVWF   PCLATH
+    SWAPF   STATUS_TEMP,W	    ; Restauramos STATUS
+    MOVWF   STATUS
+    SWAPF    W_TEMP,F	    ; Restauramos W
+    SWAPF   W_TEMP,W
     
     RETFIE
 
@@ -248,7 +248,7 @@ MAIN:
 MULT25:	    ;Escala la señal de 0 a 255 a una escala de 0 a 100
 	MOVLW	.4
 	MOVWF	CONT
-	CLRF TEMPD_H
+	CLRF	TEMPD_H
 	MOVF	TEMPB, W
 	MOVWF	TEMPD_L
 	MOVWF	TEMPD_INIT
@@ -287,19 +287,19 @@ DIVIDIR_64:
 	CLRF	C_TEMP
 	GOTO 	SEPARAR_DATO
 SEPARAR_DATO:	;Separa en unidad, decena y centena la variable TEMPD_L en BCD no empaquetado
-    MOVLW .10
-    SUBWF TEMPD_L,F
+    MOVLW   .10
+    SUBWF   TEMPD_L,F
 
-    BTFSC STATUS,C
-    GOTO SUMA_DECENA
+    BTFSC   STATUS,C
+    GOTO    SUMA_DECENA
 
-    MOVLW .10
-    ADDWF TEMPD_L,F
-    GOTO GUARDAR
+    MOVLW   .10
+    ADDWF    TEMPD_L,F
+    GOTO    GUARDAR
 
 SUMA_DECENA:
-    INCF D_TEMP,F
-    GOTO SEPARAR_DATO
+    INCF     D_TEMP,F
+    GOTO    SEPARAR_DATO
 GUARDAR:
 	MOVF	TEMPD_L, W
 	MOVWF	U_TEMP
@@ -307,18 +307,25 @@ GUARDAR:
     
 ATENDER_ADC:
     BANKSEL ADRESH		    ; Leemos parte baja
-    MOVF ADRESH,W
+    MOVF    ADRESH,W
     BANKSEL TEMPB
-    MOVWF TEMPB
+    MOVWF   TEMPB
     BANKSEL PIR1		    ; Limpiamos bandera de interrupcion
-    BCF PIR1,ADIF
+    BCF	     PIR1,ADIF
     BANKSEL CONTROL
     BSF	    CONTROL,ACT_DUTY
     RETURN
     
 ;Rutina de interrupción de timer2  
 ATENDER_TIMER2:
-RETURN
+    BANKSEL PIR1
+    BCF	    PIR1,TMR2IF
+    CALL    LOOP_DISPLAY	;actualiza displays
+    BTFSC   CONTROL,PULSO	;verifica si hay un pulso pendiente de confirmar
+    CALL    VALIDAR_PULSO
+    BTFSC   CONTROL,TECLA_ASIGNADA ;verifica si se asignó una tecla al pulso
+    CALL    EJECUTAR   ;ejecuta la acción en base al estado y la tecla
+    RETURN
     
 ;Rutina de interrupción del puerto B
 ATENDER_RBI:
@@ -431,7 +438,7 @@ PROCE_TECLA:
     CALL    ITERAR_TECLAS
     MOVWF   COLUMNA	;cargo el dato de la columna encontrada
     BTFSC   COLUMNA,7	;si no se detectó una tecla (la bandera está en COLUMNA) sale
-    GOTO SALIR  
+    GOTO    SALIR  
     CALL    CALCULAR_TECLA  ;si hay una tecla se calcula su valor
     ADDWF   COLUMNA,W	    ;le sumo el valor de la fila
     MOVWF   TECLA	    ;lo guardo en tecla
