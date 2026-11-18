@@ -47,7 +47,18 @@
     LED_BUS	EQU 0x40
     DATA_EN	EQU 0x41
     DATA_AUX	EQU 0x42
-    C_TEMP	EQU 0x45
+    ;C_TEMP	EQU 0x45
+	
+    TEMP_CTRL	EQU 0x46
+    SP_ADC	EQU 0x47
+    CNTRL_E     EQU 0x48
+    SP_TMP_L    EQU 0x49
+    SP_TMP_H    EQU 0x4A
+    PWM_H	EQU 0x4B
+    PWM_L	EQU 0x4C
+    TMP_L       EQU 0x4D
+    TMP_H       EQU 0x4E
+    CONT_CTRL	EQU 0x4F
 	
     W_TEMP	EQU 0x70
     STATUS_TEMP	EQU 0x71
@@ -112,7 +123,7 @@ INIT:
     MOVWF	0x2B
     CLRF	U_TEMP	
     CLRF	D_TEMP	
-    CLRF	C_TEMP
+    ;CLRF	C_TEMP
     CLRF	U_SP	
     CLRF	D_SP	
     CLRF	C_SP
@@ -140,7 +151,18 @@ INIT:
     CLRF	LED_BUS	
     CLRF	W_TEMP	
     CLRF	STATUS_TEMP	
-    CLRF	PCLATH_TEMP	
+    CLRF	PCLATH_TEMP
+    CLRF	TEMP_CTRL
+    CLRF	SP_ADC
+    CLRF	CNTRL_E
+    CLRF	SP_TMP_L
+    CLRF	SP_TMP_H
+    CLRF	PWM_L
+    CLRF	PWM_H
+    CLRF	TMP_H
+    CLRF	TMP_L
+    CLRF	CONT_CTRL
+    
 
     BANKSEL INTCON
     BCF	    INTCON,GIE      ; Deshabilito globalmente las interrupciones
@@ -162,7 +184,7 @@ INIT:
     BANKSEL PIR1
     BCF     PIR1,TMR1IF
     BANKSEL PIE1
-    BCF     PIE1,TMR1IE ; Habilitar interrupcion Timer1
+    BCF     PIE1,TMR1IE ; Deshabilitar interrupcion Timer1
     BANKSEL T1CON
     MOVLW   0x31	; prescaler en 8
     MOVWF   T1CON       ; Encender Timer1
@@ -207,6 +229,14 @@ INIT:
  
     BSF     INTCON,GIE      ; Habilitar interrupciones globales
     
+    ;debugueo
+    ;inicia en editar sp
+    MOVLW   0x03
+    MOVWF   ESTADO
+    ;duty cycle inicial
+    MOVLW   0x80
+    MOVWF   CCPR1L
+    
     GOTO    MAIN
     
 ISR:
@@ -241,8 +271,10 @@ MAIN:
     BTFSC   CONTROL,ACT_DUTY
     CALL    MULT25	;acondiciona la medicón para mostrar en displays
     BTFSC   CONTROL,ACT_DUTY
-    CALL    CALC_DUTY	;baja la bandera
+    ;ALL    CALC_DUTY	;baja la bandera
     ;desppues de cal_pi hace la rutina de control
+    
+    
     GOTO    MAIN
 
 MULT25:	    ;Escala la señal de 0 a 255 a una escala de 0 a 100
@@ -284,7 +316,7 @@ DIVIDIR_64:
 	GOTO	DIVIDIR_64
 	CLRF	U_TEMP
 	CLRF	D_TEMP
-	CLRF	C_TEMP
+	;CLRF	C_TEMP
 	GOTO 	SEPARAR_DATO
 SEPARAR_DATO:	;Separa en unidad, decena y centena la variable TEMPD_L en BCD no empaquetado
     MOVLW   .10
@@ -309,7 +341,8 @@ ATENDER_ADC:
     BANKSEL ADRESH		    ; Leemos parte baja
     MOVF    ADRESH,W
     BANKSEL TEMPB
-    MOVWF   TEMPB
+    MOVWF   TEMPB	;para displays
+    MOVWF   TEMP_CTRL	;para control
     BANKSEL PIR1		    ; Limpiamos bandera de interrupcion
     BCF	     PIR1,ADIF
     BANKSEL CONTROL
@@ -340,6 +373,80 @@ ATENDER_RBI:
     RETURN
 
 CALC_DUTY:
+; CNTRL_E = SP_ADC - TEMP_CTRL
+; PWM = 44 * CNTRL_E
+    BCF     CONTROL,ACT_DUTY
+    ; CNTRL_E = SP_ADC - TEMP_CTRL
+    MOVF    TEMP_CTRL,W
+    SUBWF   SP_ADC,W
+; Si la temperatura supera al setpoint
+; PWM = 0
+    BTFSS   STATUS,C
+    GOTO    DUTY_CERO
+    MOVWF   CNTRL_E
+    ; PWM = 32 * CNTRL_E
+    CLRF    PWM_H
+    MOVF    CNTRL_E,W
+    MOVWF   PWM_L
+    MOVLW   .5
+    MOVWF   CONT_CTRL
+MUL32:
+    BCF     STATUS,C
+    RLF     PWM_L,F
+    RLF     PWM_H,F
+    DECFSZ  CONT_CTRL,F
+    GOTO    MUL32
+    ; TMP = 8 * CNTRL_E
+    CLRF    TMP_H
+    MOVF    CNTRL_E,W
+    MOVWF   TMP_L
+    MOVLW   .3
+    MOVWF   CONT_CTRL
+MUL8:
+    BCF     STATUS,C
+    RLF     TMP_L,F
+    RLF     TMP_H,F
+    DECFSZ  CONT_CTRL,F
+    GOTO    MUL8
+    ; PWM += TMP
+    MOVF    TMP_L,W
+    ADDWF   PWM_L,F
+    MOVF    TMP_H,W
+    BTFSC   STATUS,C
+    ADDLW   .1
+    ADDWF   PWM_H,F
+    ; TMP = 4 * CNTRL_E
+    CLRF    TMP_H
+    MOVF    CNTRL_E,W
+    MOVWF   TMP_L
+    MOVLW   .2
+    MOVWF   CONT_CTRL
+MUL4:
+    BCF     STATUS,C
+    RLF     TMP_L,F
+    RLF     TMP_H,F
+    DECFSZ  CONT_CTRL,F
+    GOTO    MUL4
+    ; PWM += TMP
+    MOVF    TMP_L,W
+    ADDWF   PWM_L,F
+    MOVF    TMP_H,W
+    BTFSC   STATUS,C
+    ADDLW   .1
+    ADDWF   PWM_H,F
+    ; Saturación
+    MOVF    PWM_H,F
+    BTFSS   STATUS,Z
+    GOTO    SATURAR
+    MOVF    PWM_L,W
+    MOVWF   CCPR1L
+    RETURN
+SATURAR:
+    MOVLW   0xFF
+    MOVWF   CCPR1L
+    RETURN
+DUTY_CERO:
+    CLRF    CCPR1L
     RETURN
     
 ;Rutina de actualización de los displays
@@ -391,6 +498,7 @@ MOSTRAR_LEDS:
     BSF	    PORTC,4
     MOVLW   0x01	;siguiente iteración en el primer display
     MOVWF   DATA_EN
+    RETURN
 LLAMAR_TABLA:
     MOVF    INDF,W
     CALL    TABLA
@@ -570,6 +678,7 @@ SUMAR_UN_AST:
 TERMINAR:
     MOVLW   .2
     MOVWF   ESTADO  
+    CALL    ESCALAR_SP
     GOTO    RETORNAR
 
 TECLA_NUMERAL:	;función de la tecla #	(cancelar)
@@ -631,6 +740,65 @@ TECLA_D:    ;función de tecla D (desplazar der)
 RETORNAR:   ;reestablece las variables y retorna
     CLRF    TECLA   ;borro la tecla
     BCF	    CONTROL,TECLA_ASIGNADA  ;bajo la bandera
+    RETURN
+    
+ESCALAR_SP:
+    ;----------
+    ; SP_ADC = 2*SP
+    ;----------
+
+    CLRF    SP_TMP_H
+    MOVF    SP,W
+    MOVWF   SP_TMP_L
+    BCF     STATUS,C
+    RLF     SP_TMP_L,F
+    BTFSC   STATUS,C
+    INCF    SP_TMP_H,F
+    MOVF    SP_TMP_L,W
+    MOVWF   SP_ADC
+    
+    ;----------
+    ; SP_ADC += SP/2
+    ;----------
+
+    MOVF    SP,W
+    MOVWF   CONT
+    BCF     STATUS,C
+    RRF     CONT,F
+    MOVF    CONT,W
+    ADDWF   SP_ADC,F
+
+    ;----------
+    ; SP_ADC += SP/16
+    ;----------
+
+    MOVF    SP,W
+    MOVWF   CONT
+    BCF     STATUS,C
+    RRF     CONT,F
+    BCF     STATUS,C
+    RRF     CONT,F
+    BCF     STATUS,C
+    RRF     CONT,F
+    BCF     STATUS,C
+    RRF     CONT,F
+    MOVF    CONT,W
+    ADDWF   SP_ADC,F
+
+    ;----------
+    ; Saturación
+    ;----------
+
+    BTFSC   STATUS,C
+    GOTO    SAT_SP_ADC
+
+    RETURN
+
+SAT_SP_ADC
+
+    MOVLW   0xFF
+    MOVWF   SP_ADC
+
     RETURN
     
 ORG 0x0300

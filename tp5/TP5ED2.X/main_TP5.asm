@@ -125,6 +125,8 @@ ISR:
     RETFIE
 
 MAIN:
+    BANKSEL PORTC
+    BSF	    PORTC,4
     GOTO    MAIN
     
   ;Rutina de interrupción de timer0  
@@ -184,11 +186,11 @@ LOOP_DISPLAY:
   SALTA2:
     BANKSEL PORTD	;carga el dato en PORTD
     MOVWF   PORTD
-    BANKSEL PORTC	;enciende el DISPLAY o LED segun corresponda
+    BANKSEL PORTB	;enciende el DISPLAY o LED segun corresponda
     MOVF    DATA_EN,W	
-    MOVWF   PORTC
+    MOVWF   PORTB
     RLF	    DATA_EN,F	;desplaza la variable DATA_EN para la siguiente iteraci?n
-    BTFSS   DATA_EN,5	; 00100000
+    BTFSS   DATA_EN,4	; 00100000
     RETURN
     MOVLW   0x01	;si el "1" va al bit 6 lo mueve al bit 0
     MOVWF   DATA_EN
